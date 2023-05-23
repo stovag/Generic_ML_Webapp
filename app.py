@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.cluster import DBSCAN, MeanShift
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.cluster import DBSCAN, MeanShift, SpectralClustering, AffinityPropagation
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
@@ -18,19 +20,21 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import numpy as np
-st.set_page_config(layout='wide')
+
+# Set layout to wide in order to make the columns fill the whole page
+st.set_page_config(layout="wide")
 
 
 def run_supervised(algorithm, df, label_col, st_col):
-    for key in df:
-        if "id" in str.lower(key):
-            df = df.drop(key, axis=1)
+    # Split dataframe to features and labels
     x = df.drop(label_col, axis=1)
     x = StandardScaler().fit_transform(x)
     y = df[label_col]
 
+    # Split to train and test
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
 
+    # Pick model
     if algorithm == "KNN":
         n_neighbors = st_col.number_input(
             label="Select minimum number of neighbors", min_value=1, value=5
@@ -38,10 +42,19 @@ def run_supervised(algorithm, df, label_col, st_col):
         model = KNeighborsClassifier(n_neighbors=n_neighbors)
     elif algorithm == "LR":
         model = LogisticRegression()
-    
+    elif algorithm == "DT":
+        model = DecisionTreeClassifier(random_state=0)
+    elif algorithm == "RF":
+        max_depth = st_col.number_input(
+            label="Select minimum number of neighbors", min_value=1, value=2
+        )
+        model = RandomForestClassifier(max_depth=max_depth, random_state=0)
+
+    # Train and get test results
     model.fit(x_train, y_train)
     y_pred = model.predict(x_test)
 
+    # Calulcate metrics
     y_scores = model.predict_proba(x)
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred, average="weighted")
@@ -56,6 +69,7 @@ def run_supervised(algorithm, df, label_col, st_col):
 
     y_onehot = pd.get_dummies(y, columns=model.classes_)
 
+    # Draw AUC curve
     fig = go.Figure()
     fig.add_shape(type="line", line=dict(dash="dash"), x0=0, x1=1, y0=0, y1=1)
     for i in range(y_scores.shape[1]):
@@ -76,14 +90,10 @@ def run_supervised(algorithm, df, label_col, st_col):
         width=700,
         height=500,
     )
-    st_col.plotly_chart(fig, use_container_width=True )
+    st_col.plotly_chart(fig, use_container_width=True)
 
 
 def run_unsupervised(algorithm, df, label_col, st_col):
-
-    for key in df:
-        if "id" == str.lower(key):
-            df = df.drop(key, axis=1)
     x = df.drop(label_col, axis=1)
 
     # x = df
@@ -115,7 +125,15 @@ def run_unsupervised(algorithm, df, label_col, st_col):
             )
 
         model = MeanShift(bandwidth=bandwidth)
-
+    elif algorithm == "SC":
+        n_clusters = st_col.number_input(
+            label="Select the number of clusters", min_value=1, value=2
+        )
+        model = SpectralClustering(
+            n_clusters=n_clusters, assign_labels="discretize", random_state=0
+        )
+    elif algorithm == "AP":
+        model = AffinityPropagation(random_state=5)
 
     # Fit the model to the data
     clustering_labels = model.fit_predict(x)
@@ -129,7 +147,7 @@ def run_unsupervised(algorithm, df, label_col, st_col):
     nmis = normalized_mutual_info_score(y, clustering_labels)
 
     results_dict = {
-        "Metric": ["Silhoutette Score", "Normalized Mutual Information Score"],
+        "Metric": ["Silhouette Score", "Normalized Mutual Information Score"],
         "Score": [silhouette, nmis],
     }
 
@@ -143,12 +161,10 @@ def run_unsupervised(algorithm, df, label_col, st_col):
     # Plot the clusters
     with st_col.expander("Show Cluster Plot"):
         fig = px.scatter(
-                x=graph_df[graph_df.keys()[0]],
-                y=graph_df[graph_df.keys()[1]],
-                color=clusters_labeled[:, 0], 
-                color_discrete_sequence=[
-                 "orange", "red", "green", "blue", "purple"],
-
+            x=graph_df[graph_df.keys()[0]],
+            y=graph_df[graph_df.keys()[1]],
+            color=clusters_labeled[:, 0],
+            color_discrete_sequence=["orange", "red", "green", "blue", "purple"],
         )
 
         fig.update_layout(plot_bgcolor="rgb(47,47,47)")
@@ -166,6 +182,11 @@ if __name__ == "__main__":
         else:
             df = pd.read_csv(file, sep=sep, index_col=False)
 
+        # Remove possible id column
+        for key in df:
+            if "id" in str.lower(key):
+                df = df.drop(key, axis=1)
+
         if st.sidebar.checkbox("Show dataframe"):
             st.sidebar.write(df.head())
 
@@ -173,9 +194,14 @@ if __name__ == "__main__":
             "Select Labels Column", df.keys(), index=len(df.keys()) - 1
         )
 
-        col1, col2 = st.columns((10,10), gap = "large")
+        col1, col2 = st.columns((10, 10), gap="large")
 
-        supervised_map = {"K Nearest Neighbors": "KNN", "Logistic Regression": "LR"}
+        supervised_map = {
+            "K Nearest Neighbors": "KNN",
+            "Logistic Regression": "LR",
+            "Decision Tree Classifier": "DT",
+            "Random Forest Classifier": "RF",
+        }
 
         supervised_classifier = col1.selectbox(
             "Pick a supervised algorithm to use", supervised_map.keys()
@@ -183,7 +209,12 @@ if __name__ == "__main__":
 
         run_supervised(supervised_map[supervised_classifier], df, label_col, col1)
 
-        unsupervised_map = {"Mean Shift": "MS", "DBSCAN": "DBS"}
+        unsupervised_map = {
+            "Mean Shift": "MS",
+            "DBSCAN": "DBS",
+            "Spectral Clustering": "SC",
+            "Affinity Propagation": "AP",
+        }
 
         unsupervised_classifier = col2.selectbox(
             "Pick an unsupervised algorithm to use", unsupervised_map.keys()
