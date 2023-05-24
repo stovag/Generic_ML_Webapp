@@ -28,6 +28,7 @@ st.set_page_config(layout="wide")
 def run_supervised(algorithm, df, label_col, st_col):
     # Split dataframe to features and labels
     x = df.drop(label_col, axis=1)
+    # Normalize dataset
     x = StandardScaler().fit_transform(x)
     y = df[label_col]
 
@@ -94,12 +95,15 @@ def run_supervised(algorithm, df, label_col, st_col):
 
 
 def run_unsupervised(algorithm, df, label_col, st_col):
-    x = df.drop(label_col, axis=1)
 
-    # x = df
-    x = StandardScaler().fit_transform(x)
+    # Split dataframe to features and labels
+    x = df.drop(label_col, axis=1)
     y = df[label_col]
 
+    # Normalize dataset
+    x = StandardScaler().fit_transform(x)
+
+    # Pick model
     if algorithm == "DBS":
         eps = st_col.slider(
             label="Select maximum distance for neighbors",
@@ -111,26 +115,21 @@ def run_unsupervised(algorithm, df, label_col, st_col):
         min_samples = st_col.number_input(
             label="Select minimum number of neighbors", min_value=3, value=5
         )
-
         model = DBSCAN(eps=eps, min_samples=min_samples)
     elif algorithm == "MS":
-        bandwidth = None
-        if st_col.checkbox("Set Bandwidth"):
-            bandwidth = st_col.slider(
-                label="Select maximum distance for neighbors",
-                min_value=0.5,
-                max_value=10.0,
-                step=0.5,
-                value=2.0,
-            )
-
+        bandwidth = st_col.slider(
+            label="Select maximum distance for neighbors",
+            min_value=0.5,
+            max_value=10.0,
+            step=0.5,
+            value=2.0,
         model = MeanShift(bandwidth=bandwidth)
     elif algorithm == "SC":
         n_clusters = st_col.number_input(
             label="Select the number of clusters", min_value=1, value=2
         )
         model = SpectralClustering(
-            n_clusters=n_clusters, assign_labels="discretize", random_state=0
+            n_clusters=n_lusters, assign_labels="discretize", random_state=0
         )
     elif algorithm == "AP":
         model = AffinityPropagation(random_state=5)
