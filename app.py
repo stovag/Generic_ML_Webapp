@@ -154,8 +154,6 @@ def run_unsupervised(algorithm, df, label_col, st_col):
 
     st_col.write(f"Number of Clusters Found: {len(set(clustering_labels))}")
 
-    graph_df = graph_df.drop("labels", axis=1)
-
     # Plot the clusters
     with st_col.expander("Show Cluster Plot"):
         fig = px.scatter(

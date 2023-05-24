@@ -5,3 +5,4 @@ RUN pip install -r requirements.txt
 EXPOSE 8501
 COPY . .
 CMD ["streamlit", "run", "app.py"]
+
