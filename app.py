@@ -122,7 +122,7 @@ def run_unsupervised(algorithm, df, label_col, st_col):
             min_value=0.5,
             max_value=10.0,
             step=0.5,
-            value=2.0,
+            value=2.0)
         model = MeanShift(bandwidth=bandwidth)
     elif algorithm == "SC":
         n_clusters = st_col.number_input(
