@@ -129,7 +129,7 @@ def run_unsupervised(algorithm, df, label_col, st_col):
             label="Select the number of clusters", min_value=1, value=2
         )
         model = SpectralClustering(
-            n_clusters=n_lusters, assign_labels="discretize", random_state=0
+            n_clusters=n_clusters, assign_labels="discretize", random_state=0
         )
     elif algorithm == "AP":
         model = AffinityPropagation(random_state=5)
